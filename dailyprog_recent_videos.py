@@ -4,8 +4,10 @@ import time
 import json
 import requests
 import feedparser
+import subprocess
 
 debug = False
+download_videos = False
 
 # Set update interval here. Should not be too short as to not get IP banned.
 update_interval = 3600 # 1 hour (3600s)
@@ -30,30 +32,10 @@ try:
 except FileNotFoundError:
 	print('JSON file not found. Fetching new videos...', file=sys.stderr)
 
-'''for username in channels:
-	filename = os.path.join(
-		os.path.dirname(os.path.abspath(__file__)),
-		'{0}.xml'.format(username)
-		)
-
-	try:
-		with open(filename, 'wb') as new_file:
-			response = requests.get('https://www.youtube.com/feeds/videos.xml?user={0}'
-				.format(username))
-			new_file.write(response.content)
-	except Exception as ex:
-		print('Could not update channel {0}.\nCaught exception: {1}'
-			.format(username, str(ex)), file=sys.stderr)'''
-
 videos = []
 most_recent_videos = []
 
 for username in channels:
-	'''filename = os.path.join(
-		os.path.dirname(os.path.abspath(__file__)),
-		'{0}.xml'.format(username)
-		)
-	f = feedparser.parse(filename)'''
 	f = feedparser.parse('https://www.youtube.com/feeds/videos.xml?user={0}'
 				.format(username))
 	processing_latest_video = True
@@ -99,3 +81,22 @@ try:
 		print(json.dumps(videos), file=f)
 except Exception as ex:
 	print('Could not write JSON file.\nCaught exception: {0}'.format(str(ex)), file=sys.stderr)
+
+# Download short segment from the most recent videos.
+if download_videos:
+	for v in most_recent_videos:
+		output_filename = os.path.join(
+			os.path.dirname(os.path.abspath(__file__)),
+			'videos',
+			'{0}.mp4'.format(v['id'])
+		)
+
+		if os.path.isfile(output_filename):
+			print('File for video id {0} already exists, skipping...'.format(v['id']), file=sys.stderr)
+			continue
+
+		# Use youtube-dl to get a link to the video file.
+		video_url = subprocess.check_output(['youtube-dl', '-f 22', '-g', v['url']])
+
+		# Extract the first 3 minutes with ffmpeg.
+		subprocess.run(['ffmpeg', '-ss', '00:00:00', '-i', video_url, '-c', 'copy', '-t', '00:00:05', output_filename])
