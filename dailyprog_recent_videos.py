@@ -44,6 +44,7 @@ for username in channels:
 	for item in f.entries:
 		video = {
 			'title': item.title,
+			'author': username,
 			'url': item.link,
 			'id': item.link[32:], # This is prone to breaking. If anything goes
 								  # wrong this is a good place to check.
